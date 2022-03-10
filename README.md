@@ -1,4 +1,6 @@
-### vcfio
+### vcf2df
 
-VCF reader library - modified from github.com/brentp/vcfio
+Reads sample.vcf.gz and writes pandas dataframe sample.parquet
+
+
 
