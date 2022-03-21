@@ -25,14 +25,9 @@ func main() {
 						Required: true,
 						Usage:    "Single vcf file (.vcf.gz)",
 					},
-					&cli.StringFlag{
-						Name:  "info",
-						Usage: "INFO value (ex. BETA",
-					},
-					&cli.StringFlag{
-						Name:  "type",
-						Value: "string",
-						Usage: "INFO type (ex. string, float, int)",
+					&cli.BoolFlag{
+						Name:  "beta",
+						Usage: "Beta column instead of numalts.",
 					},
 					&cli.StringFlag{
 						Name:  "out",
@@ -41,10 +36,11 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					if c.String("info") != "" {
-						ConvertINFO(c.String("vcf"), c.String("out"), c.String("info"), c.String("type"))
+					if c.Bool("beta") {
+						ConvertBETA(c.String("vcf"), c.String("out"))
+					} else {
+						ConvertNumAlts(c.String("vcf"), c.String("out"))
 					}
-					ConvertNumAlts(c.String("vcf"), c.String("out"))
 					return nil
 				},
 			},

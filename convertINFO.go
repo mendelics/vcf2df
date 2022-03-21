@@ -16,48 +16,38 @@ import (
 	"github.com/fraugster/parquet-go/parquetschema"
 )
 
-// ConvertINFO converts vcf to dataframe parquet file with variantkey + info
-func ConvertINFO(
+// ConvertBETA converts vcf to dataframe parquet file with variantkey + beta
+func ConvertBETA(
 	vcf string,
 	outputFolder string,
-	info string,
-	infoType string,
 ) {
 	missingVcfs := checkIfVcfsExist([]string{vcf})
 	if len(missingVcfs) != 0 {
 		log.Fatalf("missing vcfs: %v", missingVcfs)
 	}
 
-	outputFileName := filepath.Base(vcf)
-	outputFileName = strings.Replace(outputFileName, ".vcf.gz", ".parquet", -1)
-	outputFilePath := path.Join(outputFolder, outputFileName)
+	prsName := filepath.Base(vcf)
+	prsName = strings.Replace(prsName, ".vcf.gz", "", -1)
 
-	outputFile, err := os.Create(outputFilePath)
+	outputFileName := path.Join(outputFolder, fmt.Sprintf("%s.parquet", prsName))
+	outputFile, err := os.Create(outputFileName)
 	if err != nil {
 		log.Fatalf("Error creating output file, %v\n", err)
 	}
 
-	f, err := os.OpenFile(outputFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	f, err := os.OpenFile(outputFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		log.Fatalf("Opening output file failed: %v", err)
 	}
 	defer f.Close()
 
-	var defType, defType2 string
-	switch infoType {
-	case "string":
-		defType = "binary"
-		defType2 = " (STRING)"
-	case "int":
-		defType = "int64"
-	case "float":
-		defType = "double"
-	}
+	schemaStr := `message test {
+		required binary variantkey (STRING);
+		required double PRSNAME;
+	}`
 
-	definitionStr := fmt.Sprintf("`message test {\n\t\trequired binary variantkey (STRING);\n\t\trequired %s %s%s;\n\t}`", defType, info, defType2)
-
-	schemaDef, err := parquetschema.ParseSchemaDefinition(definitionStr)
-
+	schemaStr = strings.Replace(schemaStr, "PRSNAME", prsName, -1)
+	schemaDef, err := parquetschema.ParseSchemaDefinition(schemaStr)
 	if err != nil {
 		log.Fatalf("Parsing schema definition failed: %v", err)
 	}
@@ -91,9 +81,17 @@ func ConvertINFO(
 			continue
 		}
 
+		var beta float64
+		fields := strings.Split(line, "\t")
+		info := vcfio.NewInfoByte([]byte(fields[7]), header)
+		betaInterface, err := info.Get("BETA")
+		if err == nil && betaInterface != nil {
+			beta = betaInterface.(float64)
+		}
+
 		if err := fw.AddData(map[string]interface{}{
 			"variantkey": []byte(variantInfo.VariantKey),
-			info:         int32(genotypes[0].NumAlts),
+			prsName:      beta,
 		}); err != nil {
 			log.Fatalf("Failed to add input %s to parquet file: %v", variantInfo.VariantKey, err)
 		}
