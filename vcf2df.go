@@ -20,11 +20,31 @@ func main() {
 				Name:  "convert",
 				Usage: "Read sample.vcf.gz and write sample.parquet",
 				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "vcf", Required: true, Usage: "Single vcf file (.vcf.gz)"},
-					&cli.StringFlag{Name: "out", Value: "./", Usage: "Output folder."},
+					&cli.StringFlag{
+						Name:     "vcf",
+						Required: true,
+						Usage:    "Single vcf file (.vcf.gz)",
+					},
+					&cli.StringFlag{
+						Name:  "info",
+						Usage: "INFO value (ex. BETA",
+					},
+					&cli.StringFlag{
+						Name:  "type",
+						Value: "string",
+						Usage: "INFO type (ex. string, float, int)",
+					},
+					&cli.StringFlag{
+						Name:  "out",
+						Value: "./",
+						Usage: "Output folder.",
+					},
 				},
 				Action: func(c *cli.Context) error {
-					Convert(c.String("vcf"), c.String("out"))
+					if c.String("info") != "" {
+						ConvertINFO(c.String("vcf"), c.String("out"), c.String("info"), c.String("type"))
+					}
+					ConvertNumAlts(c.String("vcf"), c.String("out"))
 					return nil
 				},
 			},

@@ -14,8 +14,8 @@ import (
 	"github.com/fraugster/parquet-go/parquetschema"
 )
 
-// Convert converts vcf to dataframe parquet file with variantkey + numalts
-func Convert(
+// ConvertNumAlts converts vcf to dataframe parquet file with variantkey + numalts
+func ConvertNumAlts(
 	vcf string,
 	outputFolder string,
 ) {
