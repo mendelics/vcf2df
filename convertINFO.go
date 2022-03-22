@@ -28,6 +28,7 @@ func ConvertBETA(
 
 	prsName := filepath.Base(vcf)
 	prsName = strings.Replace(prsName, ".vcf.gz", "", -1)
+	prsName = strings.Replace(prsName, ".", "_", -1)
 
 	outputFileName := path.Join(outputFolder, fmt.Sprintf("%s.parquet", prsName))
 	outputFile, err := os.Create(outputFileName)
