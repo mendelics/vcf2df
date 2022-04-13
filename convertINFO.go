@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mendelics/vcf2df/vcfio"
+	"github.com/mendelics/vcfio"
 
 	goparquet "github.com/fraugster/parquet-go"
 	"github.com/fraugster/parquet-go/parquet"
@@ -75,7 +75,7 @@ func ConvertBETA(
 		line := vcfScanner.Text()
 
 		// Parse vcf line into variant struct
-		variantInfo, _, _, _, _ := vcfio.ParseVariant(line, header)
+		variantInfo, _, _, _ := vcfio.ParseVariant(line, header)
 
 		// Alts with * are skipped
 		if variantInfo.Alt == "*" {
