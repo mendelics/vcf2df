@@ -7,7 +7,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/mendelics/vcf2df/vcfio"
+	"github.com/mendelics/vcfio"
 
 	goparquet "github.com/fraugster/parquet-go"
 	"github.com/fraugster/parquet-go/parquet"
@@ -74,7 +74,7 @@ func ConvertNumAlts(
 		line := vcfScanner.Text()
 
 		// Parse vcf line into variant struct
-		variantInfo, _, genotypes, _, _ := vcfio.ParseVariant(line, header)
+		variantInfo, _, genotypes, _ := vcfio.ParseVariant(line, header)
 
 		// Alts with * are skipped
 		if variantInfo.Alt == "*" {
