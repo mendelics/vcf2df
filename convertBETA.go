@@ -1,11 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
-	"path"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,26 +14,13 @@ import (
 )
 
 // ConvertBETA converts vcf to dataframe parquet file with variantkey + beta
-func ConvertBETA(
-	vcf string,
-	outputFolder string,
-) {
-	missingVcfs := checkIfVcfsExist([]string{vcf})
-	if len(missingVcfs) != 0 {
-		log.Fatalf("missing vcfs: %v", missingVcfs)
-	}
-
-	prsName := filepath.Base(vcf)
-	prsName = strings.Replace(prsName, ".vcf.gz", "", -1)
-	prsName = strings.Replace(prsName, ".", "_", -1)
-
-	outputFileName := path.Join(outputFolder, fmt.Sprintf("%s.parquet", prsName))
-	outputFile, err := os.Create(outputFileName)
+func ConvertBETA(vcfPath, outputFilename, outputPath string) {
+	outputFile, err := os.Create(outputPath)
 	if err != nil {
 		log.Fatalf("Error creating output file, %v\n", err)
 	}
 
-	f, err := os.OpenFile(outputFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	f, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		log.Fatalf("Opening output file failed: %v", err)
 	}
@@ -47,7 +31,7 @@ func ConvertBETA(
 		required double PRSNAME;
 	}`
 
-	schemaStr = strings.Replace(schemaStr, "PRSNAME", prsName, -1)
+	schemaStr = strings.Replace(schemaStr, "PRSNAME", outputFilename, -1)
 	schemaDef, err := parquetschema.ParseSchemaDefinition(schemaStr)
 	if err != nil {
 		log.Fatalf("Parsing schema definition failed: %v", err)
@@ -66,7 +50,7 @@ func ConvertBETA(
 	annotTime := time.Now()
 
 	// Read VCF file into query stream
-	vcfScanner, header, err := vcfio.ReadNewVcf(vcf)
+	vcfScanner, header, err := vcfio.ReadNewVcf(vcfPath)
 	if err != nil {
 		log.Fatalf("Error reading vcf, %v\n", err)
 	}
@@ -91,8 +75,8 @@ func ConvertBETA(
 		}
 
 		if err := fw.AddData(map[string]interface{}{
-			"variantkey": []byte(variantInfo.VariantKey),
-			prsName:      beta,
+			"variantkey":   []byte(variantInfo.VariantKey),
+			outputFilename: beta,
 		}); err != nil {
 			log.Fatalf("Failed to add input %s to parquet file: %v", variantInfo.VariantKey, err)
 		}

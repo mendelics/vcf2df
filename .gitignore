@@ -1,4 +1,4 @@
 vcf2df
 *.parquet
 .DS_Store
-
+*.ipynb
