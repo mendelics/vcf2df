@@ -13,10 +13,6 @@ import (
 	"github.com/fraugster/parquet-go/parquetschema"
 )
 
-//TODO:
-// remove numalts when no genotypes
-// transform INFO to columns
-
 // convert2parquet converts vcf to dataframe parquet file with variantkey + numalts
 func convert2parquet(vcfPath, outputFilename, outputPath string, useSampleAsColumn, outputAllVcfColumns bool) {
 
@@ -122,6 +118,11 @@ func formatOutputMap(outputFilename string, useSampleAsColumn, outputAllVcfColum
 		numaltsColumnName = outputFilename
 	}
 
+	var numalts int32
+	if len(g) != 0 {
+		numalts = int32(g[0].NumAlts)
+	}
+
 	switch {
 	case outputAllVcfColumns:
 		return map[string]interface{}{
@@ -133,12 +134,12 @@ func formatOutputMap(outputFilename string, useSampleAsColumn, outputAllVcfColum
 			"qual":            q.QualScore,
 			"filter":          []byte(q.Filter),
 			"info":            []byte(info),
-			numaltsColumnName: int32(g[0].NumAlts),
+			numaltsColumnName: numalts,
 		}
 	default:
 		return map[string]interface{}{
 			"variantkey":      []byte(v.VariantKey),
-			numaltsColumnName: int32(g[0].NumAlts),
+			numaltsColumnName: numalts,
 		}
 	}
 }
