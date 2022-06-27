@@ -1,17 +1,28 @@
 package main
 
 import (
+	"fmt"
+	"log"
+	"strconv"
 	"strings"
 
 	"github.com/fraugster/parquet-go/parquetschema"
 	"github.com/mendelics/vcfio"
 )
 
-func defineSchema(numaltsColumnName string, outputAllVcfColumns bool) (*parquetschema.SchemaDefinition, error) {
-	var msgStr string
+type infoField struct {
+	id       string
+	infoType string
+}
+
+func defineSchema(numaltsColumnName string, outputAllVcfColumns bool, header *vcfio.Header) (*parquetschema.SchemaDefinition, []infoField, error) {
+	// var msgStr string
+	var msgStrStart string
+	msgStrEnd := "}"
+
 	switch {
 	case outputAllVcfColumns:
-		msgStr = `message test {
+		msgStrStart = `message test {
 			required binary variantkey (STRING);
 			required binary chrom (STRING);
 			required int32 pos;
@@ -19,23 +30,75 @@ func defineSchema(numaltsColumnName string, outputAllVcfColumns bool) (*parquets
 			required binary alt (STRING);
 			required double qual;
 			required binary filter (STRING);
-			required binary info (STRING);
 			required int32 numalts;
-		}`
+`
 
 	default:
-		msgStr = `message test {
+		msgStrStart = `message test {
 		required binary variantkey (STRING);
 		required int32 numalts;
-	}`
+`
 	}
 
-	msgStr = strings.Replace(msgStr, "numalts", numaltsColumnName, -1)
+	msgStrStart = strings.Replace(msgStrStart, "numalts", numaltsColumnName, -1)
 
-	return parquetschema.ParseSchemaDefinition(msgStr)
+	infos := make([]string, 0)
+	infoList := make([]infoField, 0)
+	for _, info := range header.Infos {
+		var line string
+		switch {
+		case info.Type == "Integer" && info.Number == "1":
+			line = fmt.Sprintf("required int32 %s;\n", info.Id)
+			infoList = append(infoList, infoField{id: info.Id, infoType: "int32"})
+		case info.Type == "Float" && info.Number == "1":
+			line = fmt.Sprintf("required double %s;\n", info.Id)
+			infoList = append(infoList, infoField{id: info.Id, infoType: "float64"})
+		case info.Type == "Flag" && info.Number == "0":
+			line = fmt.Sprintf("required boolean %s;\n", info.Id)
+			infoList = append(infoList, infoField{id: info.Id, infoType: "bool"})
+		case info.Type == "String" && info.Number == "1":
+			line = fmt.Sprintf("required binary %s (STRING);\n", info.Id)
+			infoList = append(infoList, infoField{id: info.Id, infoType: "string"})
+		case info.Number != "1":
+			switch {
+			case info.Type == "Integer":
+				line = fmt.Sprintf("required binary %s (STRING);\n", info.Id)
+				infoList = append(infoList, infoField{id: info.Id, infoType: "[]int"})
+			case info.Type == "Float":
+				line = fmt.Sprintf("required binary %s (STRING);\n", info.Id)
+				infoList = append(infoList, infoField{id: info.Id, infoType: "[]float32"})
+			}
+		default:
+			log.Println("HERE1", info)
+			continue
+			// line = fmt.Sprintf("required binary %s (STRING);\n", info.Id)
+			// infoList = append(infoList, infoField{id: info.Id, infoType: "string"})
+		}
+
+		infos = append(infos, line)
+	}
+
+	infoStr := strings.Join(infos, "")
+	msg := fmt.Sprintf("%s%s%s", msgStrStart, infoStr, msgStrEnd)
+
+	schemadef, err := parquetschema.ParseSchemaDefinition(msg)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return schemadef, infoList, nil
 }
 
-func formatOutputMap(numaltsColumnName string, outputAllVcfColumns bool, v vcfio.VariantInfo, q vcfio.Quality, g []vcfio.SampleSpecific, info string) map[string]interface{} {
+func formatOutputMap(
+	numaltsColumnName string,
+	outputAllVcfColumns bool,
+	v vcfio.VariantInfo,
+	q vcfio.Quality,
+	g []vcfio.SampleSpecific,
+	infoList []infoField,
+	infos *vcfio.InfoByte,
+) map[string]interface{} {
+
 	var numalts int32
 	if len(g) != 0 {
 		numalts = int32(g[0].NumAlts)
@@ -43,7 +106,7 @@ func formatOutputMap(numaltsColumnName string, outputAllVcfColumns bool, v vcfio
 
 	switch {
 	case outputAllVcfColumns:
-		return map[string]interface{}{
+		outputFields := map[string]interface{}{
 			"variantkey":      []byte(v.VariantKey),
 			"chrom":           []byte(v.Chr),
 			"pos":             int32(v.Start + 1),
@@ -51,9 +114,80 @@ func formatOutputMap(numaltsColumnName string, outputAllVcfColumns bool, v vcfio
 			"alt":             []byte(v.Alt),
 			"qual":            q.QualScore,
 			"filter":          []byte(q.Filter),
-			"info":            []byte(info),
 			numaltsColumnName: numalts,
 		}
+
+		for _, info := range infoList {
+			valueInterface, err := infos.Get(info.id)
+			if err == nil && valueInterface != nil {
+				outputFields[info.id] = valueInterface
+				switch info.infoType {
+				case "int32":
+					value := valueInterface.(int)
+					outputFields[info.id] = int32(value)
+				case "float64":
+					value := valueInterface.(float64)
+					outputFields[info.id] = value
+				case "float32":
+					value := valueInterface.(float32)
+					outputFields[info.id] = value
+				case "bool":
+					value := valueInterface.(bool)
+					outputFields[info.id] = value
+				case "[]int":
+					value := valueInterface.([]int)
+					valuesText := make([]string, 0)
+					for i := range value {
+						number := value[i]
+						text := strconv.Itoa(number)
+						valuesText = append(valuesText, text)
+					}
+					valueStr := strings.Join(valuesText, ",")
+					outputFields[info.id] = []byte(valueStr)
+
+				case "[]float32":
+					value := valueInterface.([]float32)
+					valuesText := make([]string, 0)
+					for i := range value {
+						fl := value[i]
+						text := fmt.Sprintf("%.2f", fl)
+						valuesText = append(valuesText, text)
+					}
+					valueStr := strings.Join(valuesText, ",")
+					outputFields[info.id] = []byte(valueStr)
+
+				case "string":
+					value := valueInterface.(string)
+					outputFields[info.id] = []byte(value)
+				default:
+					log.Println("HERE", valueInterface)
+					// value := valueInterface.(string)
+					// outputFields[info.id] = []byte(value)
+				}
+			} else {
+				switch info.infoType {
+				case "int32":
+					outputFields[info.id] = int32(0)
+				case "float64":
+					outputFields[info.id] = float64(0.0)
+				case "float32":
+					outputFields[info.id] = float32(0.0)
+				case "[]int":
+					outputFields[info.id] = []byte("")
+				case "[]float64":
+					outputFields[info.id] = []byte("")
+				case "bool":
+					outputFields[info.id] = []byte("false")
+				case "string":
+					outputFields[info.id] = []byte("")
+				default:
+					outputFields[info.id] = []byte("")
+				}
+			}
+		}
+
+		return outputFields
+
 	default:
 		return map[string]interface{}{
 			"variantkey":      []byte(v.VariantKey),
@@ -61,139 +195,3 @@ func formatOutputMap(numaltsColumnName string, outputAllVcfColumns bool, v vcfio
 		}
 	}
 }
-
-// func defineSchema(outputFilename string, outputAllVcfColumns bool, numaltsColumnName string, header *vcfio.Header) (*parquetschema.SchemaDefinition, []infoField, error) {
-// 	var msgStrStart string
-// 	// msgStrEnd := "}"
-
-// 	switch {
-// 	case outputAllVcfColumns:
-// 		msgStrStart = `message test {
-// 			required binary variantkey (STRING);
-// 			required binary chrom (STRING);
-// 			required int32 pos;
-// 			required binary ref (STRING);
-// 			required binary alt (STRING);
-// 			required double qual;
-// 			required binary filter (STRING);
-// 			required binary info (STRING);
-// 			required int32 #NUMALTS#;
-// 		}`
-
-// 	default:
-// 		msgStrStart = `message test {
-// 		required binary variantkey (STRING);
-// 		required int32 #NUMALTS#;
-// 	}`
-// 	}
-
-// 	msgStrStart = strings.Replace(msgStrStart, "#NUMALTS#", outputFilename, -1)
-
-// 	// infos := make([]string, 0)
-// 	infoList := make([]infoField, 0)
-// 	// for _, info := range header.Infos {
-// 	// 	var line string
-// 	// 	if info.Number == "1" {
-// 	// 		switch {
-// 	// 		case info.Type == "Integer":
-// 	// 			line = fmt.Sprintf("required int32 %s;\n", info.Id)
-// 	// 			infoList = append(infoList, infoField{id: info.Id, infoType: "int32"})
-// 	// 		case info.Type == "Float":
-// 	// 			line = fmt.Sprintf("required double %s;\n", info.Id)
-// 	// 			infoList = append(infoList, infoField{id: info.Id, infoType: "float64"})
-// 	// 		case info.Type == "Flag":
-// 	// 			line = fmt.Sprintf("required boolean %s;\n", info.Id)
-// 	// 			infoList = append(infoList, infoField{id: info.Id, infoType: "bool"})
-// 	// 		default:
-// 	// 			line = fmt.Sprintf("required binary %s (STRING);\n", info.Id)
-// 	// 			infoList = append(infoList, infoField{id: info.Id, infoType: "string"})
-// 	// 		}
-// 	// 	} else {
-// 	// 		line = fmt.Sprintf("required binary %s (STRING);\n", info.Id)
-// 	// 		infoList = append(infoList, infoField{id: info.Id, infoType: "string"})
-// 	// 	}
-
-// 	// 	infos = append(infos, line)
-// 	// }
-
-// 	// infoStr := strings.Join(infos, "")
-// 	// msg := fmt.Sprintf("%s%s%s", msgStrStart, infoStr, msgStrEnd)
-
-// 	schemadef, err := parquetschema.ParseSchemaDefinition(msgStrStart)
-// 	if err != nil {
-// 		return nil, nil, err
-// 	}
-
-// 	return schemadef, infoList, nil
-// }
-
-// func formatOutputMap(
-// 	numaltsColumnName string,
-// 	outputAllVcfColumns bool,
-// 	v vcfio.VariantInfo,
-// 	q vcfio.Quality,
-// 	g []vcfio.SampleSpecific,
-// 	infoList []infoField,
-// 	infos *vcfio.InfoByte,
-// ) map[string]interface{} {
-
-// 	var numalts int32
-// 	if len(g) != 0 {
-// 		numalts = int32(g[0].NumAlts)
-// 	}
-
-// 	switch {
-// 	case outputAllVcfColumns:
-// 		outputFields := map[string]interface{}{
-// 			"variantkey":      []byte(v.VariantKey),
-// 			"chrom":           []byte(v.Chr),
-// 			"pos":             int32(v.Start + 1),
-// 			"ref":             []byte(v.Ref),
-// 			"alt":             []byte(v.Alt),
-// 			"qual":            q.QualScore,
-// 			"filter":          []byte(q.Filter),
-// 			numaltsColumnName: numalts,
-// 		}
-
-// 		// for _, info := range infoList {
-// 		// 	valueInterface, err := infos.Get(info.id)
-// 		// 	if err == nil && valueInterface != nil {
-// 		// 		outputFields[info.id] = valueInterface
-// 		// 		// switch info.infoType {
-// 		// 		// case "int32":
-// 		// 		// 	value := valueInterface.(int32)
-// 		// 		// 	outputFields[info.id] = value
-// 		// 		// case "float64":
-// 		// 		// 	value := valueInterface.(float64)
-// 		// 		// 	outputFields[info.id] = value
-// 		// 		// case "bool":
-// 		// 		// 	value := valueInterface.(bool)
-// 		// 		// 	outputFields[info.id] = value
-// 		// 		// default:
-// 		// 		// 	value := valueInterface.(string)
-// 		// 		// 	outputFields[info.id] = []byte(value)
-// 		// 		// }
-// 		// 		// } else {
-// 		// 		// 	outputFields[info.id] =
-// 		// 		// 	switch info.infoType {
-// 		// 		// 	case "int32":
-// 		// 		// 		outputFields[info.id] = int32(0)
-// 		// 		// 	case "float64":
-// 		// 		// 		outputFields[info.id] = 0.0
-// 		// 		// 	case "bool":
-// 		// 		// 		outputFields[info.id] = false
-// 		// 		// 	default:
-// 		// 		// 		outputFields[info.id] = []byte("")
-// 		// 		// 	}
-// 		// 	}
-// 		// }
-
-// 		return outputFields
-
-// 	default:
-// 		return map[string]interface{}{
-// 			"variantkey":      []byte(v.VariantKey),
-// 			numaltsColumnName: numalts,
-// 		}
-// 	}
-// }
