@@ -30,12 +30,12 @@ func main() {
 						Usage: "Use sample name as output file name.",
 					},
 					&cli.BoolFlag{
-						Name:  "beta",
-						Usage: "Beta column instead of numalts.",
-					},
-					&cli.BoolFlag{
 						Name:  "full",
 						Usage: "Output all vcf columns instead of just numalts.",
+					},
+					&cli.StringFlag{
+						Name:  "info",
+						Usage: "INFO field to be output instead of numalts.",
 					},
 					&cli.StringFlag{
 						Name:  "out",
@@ -52,11 +52,8 @@ func main() {
 
 					outputFilename, outputPath := createOutputFile(c.String("vcf"), c.String("out"), c.Bool("usesample"))
 
-					if c.Bool("beta") {
-						ConvertBETA(c.String("vcf"), outputFilename, outputPath)
-					} else {
-						convert2parquet(c.String("vcf"), outputFilename, outputPath, c.Bool("usesample"), c.Bool("full"))
-					}
+					convert2parquet(c.String("vcf"), outputFilename, outputPath, c.Bool("usesample"), c.Bool("full"), c.String("info"))
+
 					return nil
 				},
 			},

@@ -13,7 +13,7 @@ import (
 )
 
 // convert2parquet converts vcf to dataframe parquet file with variantkey + numalts
-func convert2parquet(vcfPath, outputFilename, outputPath string, useSampleAsColumn, outputAllVcfColumns bool) {
+func convert2parquet(vcfPath, outputFilename, outputPath string, useSampleAsColumn, outputAllVcfColumns bool, selectedINFO string) {
 
 	startTime := time.Now()
 	log.Printf("Starting conversion to dataframe.")
@@ -36,12 +36,12 @@ func convert2parquet(vcfPath, outputFilename, outputPath string, useSampleAsColu
 	}
 
 	numaltsColumnName := "numalts"
-	if useSampleAsColumn {
+	if useSampleAsColumn || selectedINFO != "" {
 		numaltsColumnName = outputFilename
 	}
 
 	// Define output schema
-	schemaDef, infoList, err := defineSchema(numaltsColumnName, outputAllVcfColumns, header)
+	schemaDef, infoList, err := defineSchema(numaltsColumnName, selectedINFO, outputAllVcfColumns, header)
 	if err != nil {
 		log.Fatalf("Parsing schema definition failed: %v", err)
 	}
@@ -70,7 +70,7 @@ func convert2parquet(vcfPath, outputFilename, outputPath string, useSampleAsColu
 		fields := strings.Split(line, "\t")
 		infos := vcfio.NewInfoByte([]byte(fields[7]), header)
 
-		outputMap := formatOutputMap(numaltsColumnName, outputAllVcfColumns, variant, quality, genotypes, infoList, infos)
+		outputMap := formatOutputMap(numaltsColumnName, selectedINFO, outputAllVcfColumns, variant, quality, genotypes, infoList, infos)
 
 		if err := fw.AddData(outputMap); err != nil {
 			log.Fatalf("Failed to add input %s to parquet file: %v", variant.VariantKey, err)
