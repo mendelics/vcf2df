@@ -13,7 +13,9 @@ import (
 )
 
 // convert2parquet converts vcf to dataframe parquet file with variantkey + numalts
-func convert2parquet(vcfPath, outputFilename, outputPath string, useSampleAsColumn, outputAllVcfColumns bool, selectedINFO string) {
+func convert2parquet(vcfPath, outputPath string, useSampleAsColumn, outputAllVcfColumns bool, selectedINFO string) {
+
+	outputFilename, outputPath := createOutputFile(vcfPath, outputPath, useSampleAsColumn)
 
 	startTime := time.Now()
 	log.Printf("Starting conversion to dataframe.")
@@ -41,7 +43,7 @@ func convert2parquet(vcfPath, outputFilename, outputPath string, useSampleAsColu
 	}
 
 	// Define output schema
-	schemaDef, infoList, err := defineSchema(numaltsColumnName, selectedINFO, outputAllVcfColumns, header)
+	schemaDef, infoList, err := defineSchema(numaltsColumnName, selectedINFO, useSampleAsColumn, outputAllVcfColumns, header)
 	if err != nil {
 		log.Fatalf("Parsing schema definition failed: %v", err)
 	}
@@ -70,7 +72,7 @@ func convert2parquet(vcfPath, outputFilename, outputPath string, useSampleAsColu
 		fields := strings.Split(line, "\t")
 		infos := vcfio.NewInfoByte([]byte(fields[7]), header)
 
-		outputMap := formatOutputMap(numaltsColumnName, selectedINFO, outputAllVcfColumns, variant, quality, genotypes, infoList, infos)
+		outputMap := formatOutputMap(numaltsColumnName, selectedINFO, useSampleAsColumn, outputAllVcfColumns, variant, quality, genotypes, infoList, infos)
 
 		if err := fw.AddData(outputMap); err != nil {
 			log.Fatalf("Failed to add input %s to parquet file: %v", variant.VariantKey, err)
@@ -86,13 +88,3 @@ func convert2parquet(vcfPath, outputFilename, outputPath string, useSampleAsColu
 
 	log.Printf("Completed in %.2f seconds\n", time.Since(startTime).Seconds())
 }
-
-// 	schemaDef, infoList, err := defineSchema(outputFilename, outputAllVcfColumns, numaltsColumnName, header)
-// 	if err != nil {
-// 		log.Fatalf("Parsing schema definition failed: %v", err)
-// 	}
-
-// 		fields := strings.Split(line, "\t")
-// 		infos := vcfio.NewInfoByte([]byte(fields[7]), header)
-
-// 		outputMap := formatOutputMap(numaltsColumnName, outputAllVcfColumns, variant, quality, genotypes, infoList, infos)

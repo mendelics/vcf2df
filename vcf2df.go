@@ -50,9 +50,7 @@ func main() {
 						log.Fatalf("missing vcfs: %v", missingVcfs)
 					}
 
-					outputFilename, outputPath := createOutputFile(c.String("vcf"), c.String("out"), c.Bool("usesample"))
-
-					convert2parquet(c.String("vcf"), outputFilename, outputPath, c.Bool("usesample"), c.Bool("full"), c.String("info"))
+					convert2parquet(c.String("vcf"), c.String("out"), c.Bool("usesample"), c.Bool("full"), c.String("info"))
 
 					return nil
 				},

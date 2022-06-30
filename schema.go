@@ -14,7 +14,7 @@ type infoField struct {
 	infoType string
 }
 
-func defineSchema(numaltsColumnName, selectedINFO string, outputAllVcfColumns bool, header *vcfio.Header) (*parquetschema.SchemaDefinition, []infoField, error) {
+func defineSchema(numaltsColumnName, selectedINFO string, useSampleAsColumn, outputAllVcfColumns bool, header *vcfio.Header) (*parquetschema.SchemaDefinition, []infoField, error) {
 	// var msgStr string
 	var msgStrStart string
 	msgStrEnd := "}"
@@ -89,7 +89,7 @@ func defineSchema(numaltsColumnName, selectedINFO string, outputAllVcfColumns bo
 			continue
 		}
 
-		if selectedINFO != "" {
+		if selectedINFO != "" && useSampleAsColumn {
 			line = strings.Replace(line, selectedINFO, numaltsColumnName, -1)
 		}
 
@@ -110,6 +110,7 @@ func defineSchema(numaltsColumnName, selectedINFO string, outputAllVcfColumns bo
 func formatOutputMap(
 	numaltsColumnName string,
 	selectedINFO string,
+	useSampleAsColumn bool,
 	outputAllVcfColumns bool,
 	v vcfio.VariantInfo,
 	q vcfio.Quality,
