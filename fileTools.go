@@ -8,14 +8,14 @@ import (
 	"strings"
 )
 
-func createOutputFile(vcfPath, outputFolder string) string {
+func createOutputFile(vcfPath, outputFolder string) (string, string) {
 	outputFilename := filepath.Base(vcfPath)
 	outputFilename = strings.Replace(outputFilename, ".vcf.gz", "", -1)
 	outputFilename = strings.Replace(outputFilename, ".", "_", -1)
 
 	outputPath := path.Join(outputFolder, fmt.Sprintf("%s.parquet", outputFilename))
 
-	return outputPath
+	return outputPath, outputFilename
 }
 
 func checkIfVcfsExist(vcfFiles []string) []string {

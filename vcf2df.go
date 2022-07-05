@@ -30,9 +30,17 @@ func main() {
 						Value: "./",
 						Usage: "Output folder.",
 					},
+					&cli.BoolFlag{
+						Name:  "beta",
+						Usage: "Change BETA field to filename",
+					},
+					&cli.BoolFlag{
+						Name:  "numalts",
+						Usage: "Change NUMALTS@SAMPLE to numalts",
+					},
 				},
 				Action: func(c *cli.Context) error {
-					convert2parquet(c.String("vcf"), c.String("out"))
+					convert2parquet(c.String("vcf"), c.String("out"), c.Bool("beta"), c.Bool("numalts"))
 					return nil
 				},
 			},
