@@ -26,7 +26,7 @@ func defineSchema(header *vcfio.Header) (*parquetschema.SchemaDefinition, []info
 `
 	samplesSchemaLines := make([]string, 0)
 	for _, sample := range header.SampleNames {
-		sampleLine := fmt.Sprintf("required int32 NUMALTS_%s;\n", sample)
+		sampleLine := fmt.Sprintf("required int32 NUMALTS@%s;\n", sample)
 		samplesSchemaLines = append(samplesSchemaLines, sampleLine)
 	}
 
@@ -104,7 +104,7 @@ func formatOutputMap(
 	}
 
 	for _, sample := range g {
-		columnName := fmt.Sprintf("NUMALTS_%s", sample.SampleName)
+		columnName := fmt.Sprintf("NUMALTS@%s", sample.SampleName)
 		outputFields[columnName] = int32(sample.NumAlts)
 	}
 
@@ -190,5 +190,21 @@ func formatOutputMap(
 		}
 	}
 
+	// adjust END
+	if end, exists := outputFields["END"]; exists {
+		if end.(int32) == 0 {
+			outputFields["END"] = int32(v.End)
+		}
+	}
+
 	return outputFields
 }
+
+// SVtype string // Structural Variant type
+// IsSV   bool   // Is Structural Variant (CNV, INS, INV, BND)
+
+// // Only applies to inversions and breakends
+// TranslocatedChr         string
+// TranslocatedStart       int
+// TranslocatedIsPosStrand bool
+// TranslocatedComesAfter  bool
