@@ -14,46 +14,26 @@ type infoField struct {
 	infoType string
 }
 
-func defineSchema(numaltsColumnName, selectedINFO string, useSampleAsColumn, outputAllVcfColumns bool, header *vcfio.Header) (*parquetschema.SchemaDefinition, []infoField, error) {
-	// var msgStr string
-	var msgStrStart string
-	msgStrEnd := "}"
-
-	switch {
-	case outputAllVcfColumns:
-		msgStrStart = `message test {
-			required binary variantkey (STRING);
-			required binary chrom (STRING);
-			required int32 pos;
-			required binary ref (STRING);
-			required binary alt (STRING);
-			required double qual;
-			required binary filter (STRING);
-			required int32 numalts;
+func defineSchema(header *vcfio.Header) (*parquetschema.SchemaDefinition, []infoField, error) {
+	msgStrStart := `message test {
+			required binary VARIANTKEY (STRING);
+			required binary CHROM (STRING);
+			required int32 POS;
+			required binary REF (STRING);
+			required binary ALT (STRING);
+			required double QUAL;
+			required binary FILTER (STRING);
 `
-
-	case selectedINFO != "":
-		msgStrStart = `message test {
-		required binary variantkey (STRING);
-`
-
-	default:
-		msgStrStart = `message test {
-		required binary variantkey (STRING);
-		required int32 numalts;
-`
+	samplesSchemaLines := make([]string, 0)
+	for _, sample := range header.SampleNames {
+		sampleLine := fmt.Sprintf("required int32 NUMALTS_%s;\n", sample)
+		samplesSchemaLines = append(samplesSchemaLines, sampleLine)
 	}
-
-	msgStrStart = strings.Replace(msgStrStart, "numalts", numaltsColumnName, -1)
 
 	infos := make([]string, 0)
 	infoList := make([]infoField, 0)
 
 	for _, info := range header.Infos {
-		if selectedINFO != "" && selectedINFO != info.Id {
-			continue
-		}
-
 		var line string
 
 		switch {
@@ -89,15 +69,12 @@ func defineSchema(numaltsColumnName, selectedINFO string, useSampleAsColumn, out
 			continue
 		}
 
-		if selectedINFO != "" && useSampleAsColumn {
-			line = strings.Replace(line, selectedINFO, numaltsColumnName, -1)
-		}
-
 		infos = append(infos, line)
 	}
 
+	samplesStr := strings.Join(samplesSchemaLines, "")
 	infoStr := strings.Join(infos, "")
-	msg := fmt.Sprintf("%s%s%s", msgStrStart, infoStr, msgStrEnd)
+	msg := fmt.Sprintf("%s%s%s}", msgStrStart, samplesStr, infoStr)
 
 	schemadef, err := parquetschema.ParseSchemaDefinition(msg)
 	if err != nil {
@@ -108,10 +85,6 @@ func defineSchema(numaltsColumnName, selectedINFO string, useSampleAsColumn, out
 }
 
 func formatOutputMap(
-	numaltsColumnName string,
-	selectedINFO string,
-	useSampleAsColumn bool,
-	outputAllVcfColumns bool,
 	v vcfio.VariantInfo,
 	q vcfio.Quality,
 	g []vcfio.SampleSpecific,
@@ -119,31 +92,20 @@ func formatOutputMap(
 	infos *vcfio.InfoByte,
 ) map[string]interface{} {
 
-	var numalts int32
-	if len(g) != 0 {
-		numalts = int32(g[0].NumAlts)
-	}
-
+	// Every df contains variantkey
 	outputFields := map[string]interface{}{
-		"variantkey": []byte(v.VariantKey),
+		"VARIANTKEY": []byte(v.VariantKey),
+		"CHROM":      []byte(v.Chr),
+		"POS":        int32(v.Start + 1),
+		"REF":        []byte(v.Ref),
+		"ALT":        []byte(v.Alt),
+		"QUAL":       q.QualScore,
+		"FILTER":     []byte(q.Filter),
 	}
 
-	switch {
-	case outputAllVcfColumns:
-		outputFields["chrom"] = []byte(v.Chr)
-		outputFields["pos"] = int32(v.Start + 1)
-		outputFields["ref"] = []byte(v.Ref)
-		outputFields["alt"] = []byte(v.Alt)
-		outputFields["qual"] = q.QualScore
-		outputFields["filter"] = []byte(q.Filter)
-		outputFields[numaltsColumnName] = numalts
-
-	case selectedINFO != "":
-		// skip to infoList (which should be only one)
-
-	default:
-		outputFields[numaltsColumnName] = numalts
-		return outputFields
+	for _, sample := range g {
+		columnName := fmt.Sprintf("NUMALTS_%s", sample.SampleName)
+		outputFields[columnName] = int32(sample.NumAlts)
 	}
 
 	// outputAllVcfColumns iterating over INFO fields
@@ -226,12 +188,6 @@ func formatOutputMap(
 				outputFields[info.id] = []byte("")
 			}
 		}
-	}
-
-	// Change selected INFO field name to filename (used for PRS BETA)
-	if selectedINFO != "" && numaltsColumnName != "numalts" {
-		outputFields[numaltsColumnName] = outputFields[selectedINFO]
-		delete(outputFields, selectedINFO)
 	}
 
 	return outputFields

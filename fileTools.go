@@ -2,38 +2,20 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
-
-	"github.com/mendelics/vcfio"
 )
 
-func createOutputFile(vcfPath, outputFolder string, useSampleAsFilename bool) (string, string) {
-	switch {
-	case useSampleAsFilename:
-		// Read header
-		vcfReader, err := vcfio.ReadVcf(vcfPath)
-		if err != nil {
-			log.Fatalf("error reading vcf: %v", err)
-		}
+func createOutputFile(vcfPath, outputFolder string) string {
+	outputFilename := filepath.Base(vcfPath)
+	outputFilename = strings.Replace(outputFilename, ".vcf.gz", "", -1)
+	outputFilename = strings.Replace(outputFilename, ".", "_", -1)
 
-		outputFilename := vcfReader.Header.SampleNames[0]
-		outputPath := path.Join(outputFolder, fmt.Sprintf("%s.parquet", outputFilename))
+	outputPath := path.Join(outputFolder, fmt.Sprintf("%s.parquet", outputFilename))
 
-		return outputFilename, outputPath
-
-	default:
-		outputFilename := filepath.Base(vcfPath)
-		outputFilename = strings.Replace(outputFilename, ".vcf.gz", "", -1)
-		outputFilename = strings.Replace(outputFilename, ".", "_", -1)
-
-		outputPath := path.Join(outputFolder, fmt.Sprintf("%s.parquet", outputFilename))
-
-		return outputFilename, outputPath
-	}
+	return outputPath
 }
 
 func checkIfVcfsExist(vcfFiles []string) []string {

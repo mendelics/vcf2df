@@ -25,18 +25,6 @@ func main() {
 						Required: true,
 						Usage:    "Single vcf file (.vcf.gz)",
 					},
-					&cli.BoolFlag{
-						Name:  "usesample",
-						Usage: "Use sample name as output file name.",
-					},
-					&cli.BoolFlag{
-						Name:  "full",
-						Usage: "Output all vcf columns instead of just numalts.",
-					},
-					&cli.StringFlag{
-						Name:  "info",
-						Usage: "INFO field to be output instead of numalts.",
-					},
 					&cli.StringFlag{
 						Name:  "out",
 						Value: "./",
@@ -44,14 +32,7 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					// Check VCF file
-					missingVcfs := checkIfVcfsExist([]string{c.String("vcf")})
-					if len(missingVcfs) != 0 {
-						log.Fatalf("missing vcfs: %v", missingVcfs)
-					}
-
-					convert2parquet(c.String("vcf"), c.String("out"), c.Bool("usesample"), c.Bool("full"), c.String("info"))
-
+					convert2parquet(c.String("vcf"), c.String("out"))
 					return nil
 				},
 			},
