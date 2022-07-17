@@ -36,7 +36,7 @@ func main() {
 					},
 					&cli.BoolFlag{
 						Name:  "numalts",
-						Usage: "Change NUMALTS@SAMPLE to numalts",
+						Usage: "Only export variantkey and all NUMALTS@SAMPLE",
 					},
 				},
 				Action: func(c *cli.Context) error {

@@ -16,9 +16,8 @@ type infoField struct {
 }
 
 func defineSchema(header *vcfio.Header, betaOnly, numaltsOnly bool, outputFilename string) (*parquetschema.SchemaDefinition, []infoField, error) {
-	var vcfColumns string
-	samplesSchemaLines := make([]string, 0)
-	infos := make([]string, 0)
+	schemaSlice := make([]string, 0)
+	schemaSlice = append(schemaSlice, "required binary variantkey (STRING)")
 	infoList := make([]infoField, 0)
 
 	// Sample Genotypes
@@ -27,23 +26,25 @@ func defineSchema(header *vcfio.Header, betaOnly, numaltsOnly bool, outputFilena
 		// Do nothing
 
 	case numaltsOnly:
-		vcfColumns = "required int32 numalts;"
-
-	default:
-		vcfColumns = `
-		required binary CHROM (STRING);
-		required int32 POS;
-		required binary REF (STRING);
-		required binary ALT (STRING);
-		required double QUAL;
-		required binary FILTER (STRING);
-`
-
 		for _, sample := range header.SampleNames {
-			sampleLine := fmt.Sprintf("required int32 NUMALTS@%s;\n", sample)
-			samplesSchemaLines = append(samplesSchemaLines, sampleLine)
+			sampleLine := fmt.Sprintf("required int32 NUMALTS@%s", sample)
+			schemaSlice = append(schemaSlice, sampleLine)
 		}
 
+	default:
+		schemaSlice = append(schemaSlice, []string{
+			"required binary CHROM (STRING)",
+			"required int32 POS",
+			"required binary REF (STRING)",
+			"required binary ALT (STRING)",
+			"required double QUAL",
+			"required binary FILTER (STRING)",
+		}...)
+
+		for _, sample := range header.SampleNames {
+			sampleLine := fmt.Sprintf("required int32 NUMALTS@%s", sample)
+			schemaSlice = append(schemaSlice, sampleLine)
+		}
 	}
 
 	// INFO
@@ -62,30 +63,30 @@ func defineSchema(header *vcfio.Header, betaOnly, numaltsOnly bool, outputFilena
 
 			switch {
 			case info.Type == "Integer" && info.Number == "1":
-				line = fmt.Sprintf("required int32 %s;\n", info.Id)
+				line = fmt.Sprintf("required int32 %s", info.Id)
 				infoTypeStr = "int32"
 
 			case info.Type == "Float" && info.Number == "1":
-				line = fmt.Sprintf("required double %s;\n", info.Id)
+				line = fmt.Sprintf("required double %s", info.Id)
 				infoTypeStr = "float64"
 
 			case info.Type == "Flag" && info.Number == "0":
-				line = fmt.Sprintf("required boolean %s;\n", info.Id)
+				line = fmt.Sprintf("required boolean %s", info.Id)
 				infoTypeStr = "bool"
 
 			case info.Type == "String" && info.Number == "1":
-				line = fmt.Sprintf("required binary %s (STRING);\n", info.Id)
+				line = fmt.Sprintf("required binary %s (STRING)", info.Id)
 				infoTypeStr = "string"
 
 			case info.Number != "1":
 
 				switch {
 				case info.Type == "Integer":
-					line = fmt.Sprintf("required binary %s (STRING);\n", info.Id)
+					line = fmt.Sprintf("required binary %s (STRING)", info.Id)
 					infoTypeStr = "[]int"
 
 				case info.Type == "Float":
-					line = fmt.Sprintf("required binary %s (STRING);\n", info.Id)
+					line = fmt.Sprintf("required binary %s (STRING)", info.Id)
 					infoTypeStr = "[]float32"
 				}
 
@@ -102,13 +103,12 @@ func defineSchema(header *vcfio.Header, betaOnly, numaltsOnly bool, outputFilena
 				infoType: infoTypeStr,
 			})
 
-			infos = append(infos, line)
+			schemaSlice = append(schemaSlice, line)
 		}
 	}
 
-	samplesStr := strings.Join(samplesSchemaLines, "")
-	infoStr := strings.Join(infos, "")
-	msg := fmt.Sprintf("message test {required binary variantkey (STRING);%s%s%s}", vcfColumns, samplesStr, infoStr)
+	schemaStr := strings.Join(schemaSlice, ";\n")
+	msg := fmt.Sprintf("message test {\n%s;\n}", schemaStr)
 
 	schemadef, err := parquetschema.ParseSchemaDefinition(msg)
 	if err != nil {
@@ -140,7 +140,10 @@ func formatOutputMap(
 
 	case numaltsOnly:
 		if len(g) != 0 {
-			outputFields["numalts"] = int32(g[0].NumAlts)
+			for _, sample := range g {
+				columnName := fmt.Sprintf("NUMALTS@%s", sample.SampleName)
+				outputFields[columnName] = int32(sample.NumAlts)
+			}
 		} else {
 			log.Fatalf("To output --numalts, must have at least 1 sample")
 		}
