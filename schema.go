@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 
@@ -15,103 +14,83 @@ type infoField struct {
 	infoType string
 }
 
-func defineSchema(header *vcfio.Header, betaOnly, numaltsOnly bool, outputFilename string) (*parquetschema.SchemaDefinition, []infoField, error) {
+func defineSchema(header *vcfio.Header, betaOnly bool, outputFilename string) (*parquetschema.SchemaDefinition, []infoField, error) {
 	schemaSlice := make([]string, 0)
-	schemaSlice = append(schemaSlice, "required binary VARIANTKEY (STRING)")
 	infoList := make([]infoField, 0)
 
-	// Sample Genotypes
-	switch {
-	case betaOnly:
-		// Do nothing
-
-	case numaltsOnly:
-		for _, sample := range header.SampleNames {
-			sampleLine := fmt.Sprintf("required int32 NUMALTS@%s", sample)
-			schemaSlice = append(schemaSlice, sampleLine)
-		}
-
-	default:
-		schemaSlice = append(schemaSlice, []string{
-			"required binary CHROM (STRING)",
-			"required int32 POS",
-			"required binary REF (STRING)",
-			"required binary ALT (STRING)",
-			"required double QUAL",
-			"required binary FILTER (STRING)",
-			"required boolean IS_SV",
-			"required binary SVTYPE (STRING)",
-			"required int32 END",
-		}...)
-
-		for _, sample := range header.SampleNames {
-			sampleLine := fmt.Sprintf("required int32 NUMALTS@%s", sample)
-			schemaSlice = append(schemaSlice, sampleLine)
-		}
-	}
+	schemaSlice = append(schemaSlice, []string{
+		"required binary VARIANTKEY (STRING)",
+		"required binary CHROM (STRING)",
+		"required int32 POS",
+		"required binary REF (STRING)",
+		"required binary ALT (STRING)",
+		"required double QUAL",
+		"required binary FILTER (STRING)",
+		"required boolean IS_SV",
+		"required binary SVTYPE (STRING)",
+		"required int32 END",
+		"required int32 NUMALTS",
+		"required binary SAMPLE (STRING)",
+		"required boolean IS_PHASED",
+		"required binary PHASE_ID (STRING)",
+	}...)
 
 	// INFO
-	switch {
-	case numaltsOnly:
-		// Do nothing
+	for _, info := range header.Infos {
+		if betaOnly && info.Id != "BETA" {
+			continue
+		}
 
-	default:
-		for _, info := range header.Infos {
-			if betaOnly && info.Id != "BETA" {
-				continue
-			}
+		if reservedColumnNames[info.Id] {
+			continue
+		}
 
-			if info.Id == "SVTYPE" || info.Id == "END" {
-				continue
-			}
+		var line string
+		var infoTypeStr string
 
-			var line string
-			var infoTypeStr string
+		switch {
+		case info.Type == "Integer" && info.Number == "1":
+			line = fmt.Sprintf("required int32 %s", info.Id)
+			infoTypeStr = "int32"
+
+		case info.Type == "Float" && info.Number == "1":
+			line = fmt.Sprintf("required double %s", info.Id)
+			infoTypeStr = "float64"
+
+		case info.Type == "Flag" && info.Number == "0":
+			line = fmt.Sprintf("required boolean %s", info.Id)
+			infoTypeStr = "bool"
+
+		case info.Type == "String" && info.Number == "1":
+			line = fmt.Sprintf("required binary %s (STRING)", info.Id)
+			infoTypeStr = "string"
+
+		case info.Number != "1":
 
 			switch {
-			case info.Type == "Integer" && info.Number == "1":
-				line = fmt.Sprintf("required int32 %s", info.Id)
-				infoTypeStr = "int32"
-
-			case info.Type == "Float" && info.Number == "1":
-				line = fmt.Sprintf("required double %s", info.Id)
-				infoTypeStr = "float64"
-
-			case info.Type == "Flag" && info.Number == "0":
-				line = fmt.Sprintf("required boolean %s", info.Id)
-				infoTypeStr = "bool"
-
-			case info.Type == "String" && info.Number == "1":
+			case info.Type == "Integer":
 				line = fmt.Sprintf("required binary %s (STRING)", info.Id)
-				infoTypeStr = "string"
+				infoTypeStr = "[]int"
 
-			case info.Number != "1":
-
-				switch {
-				case info.Type == "Integer":
-					line = fmt.Sprintf("required binary %s (STRING)", info.Id)
-					infoTypeStr = "[]int"
-
-				case info.Type == "Float":
-					line = fmt.Sprintf("required binary %s (STRING)", info.Id)
-					infoTypeStr = "[]float32"
-				}
-
-			default:
-				continue
+			case info.Type == "Float":
+				line = fmt.Sprintf("required binary %s (STRING)", info.Id)
+				infoTypeStr = "[]float32"
 			}
 
-			if betaOnly {
-				line = strings.Replace(line, "BETA", outputFilename, -1)
-			}
-
-			infoList = append(infoList, infoField{
-				id:       info.Id,
-				infoType: infoTypeStr,
-			})
-
-			schemaSlice = append(schemaSlice, line)
+		default:
+			continue
 		}
+
+		if betaOnly {
+			line = strings.Replace(line, "BETA", outputFilename, -1)
+		}
+
+		infoList = append(infoList, infoField{
+			id:       info.Id,
+			infoType: infoTypeStr,
+		})
+
+		schemaSlice = append(schemaSlice, line)
 	}
 
 	schemaStr := strings.Join(schemaSlice, ";\n")
@@ -128,144 +107,136 @@ func defineSchema(header *vcfio.Header, betaOnly, numaltsOnly bool, outputFilena
 func formatOutputMap(
 	v vcfio.VariantInfo,
 	q vcfio.Quality,
-	g []vcfio.SampleSpecific,
+	g vcfio.SampleSpecific,
 	infoList []infoField,
 	infos *vcfio.InfoByte,
 	betaOnly bool,
-	numaltsOnly bool,
 	outputFilename string,
 ) map[string]interface{} {
 
 	// Every df contains variantkey
 	outputFields := map[string]interface{}{
 		"VARIANTKEY": []byte(v.VariantKey),
+		"CHROM":      []byte(v.Chr),
+		"POS":        int32(v.Start + 1),
+		"REF":        []byte(v.Ref),
+		"ALT":        []byte(v.Alt),
+		"QUAL":       q.QualScore,
+		"FILTER":     []byte(q.Filter),
+		"IS_SV":      v.IsSV,
+		"SVTYPE":     []byte(v.SVtype),
+		"END":        int32(v.End),
+		"NUMALTS":    int32(g.NumAlts),
+		"SAMPLE":     []byte(g.SampleName),
+		"IS_PHASED":  g.IsPhased,
+		"PHASE_ID":   []byte(g.PhaseID),
 	}
 
-	switch {
-	case betaOnly:
-		// Do nothing
-
-	case numaltsOnly:
-		if len(g) != 0 {
-			for _, sample := range g {
-				columnName := fmt.Sprintf("NUMALTS@%s", sample.SampleName)
-				outputFields[columnName] = int32(sample.NumAlts)
-			}
-		} else {
-			log.Fatalf("To output --numalts, must have at least 1 sample")
+	// outputAllVcfColumns iterating over INFO fields
+	for _, info := range infoList {
+		if betaOnly && info.id != "BETA" {
+			continue
 		}
 
-	default:
-		outputFields["CHROM"] = []byte(v.Chr)
-		outputFields["POS"] = int32(v.Start + 1)
-		outputFields["REF"] = []byte(v.Ref)
-		outputFields["ALT"] = []byte(v.Alt)
-		outputFields["QUAL"] = q.QualScore
-		outputFields["FILTER"] = []byte(q.Filter)
-		outputFields["IS_SV"] = v.IsSV
-		outputFields["SVTYPE"] = []byte(v.SVtype)
-		outputFields["END"] = int32(v.End)
+		valueInterface, err := infos.Get(info.id)
 
-		for _, sample := range g {
-			columnName := fmt.Sprintf("NUMALTS@%s", sample.SampleName)
-			outputFields[columnName] = int32(sample.NumAlts)
-		}
-	}
-
-	switch {
-	case numaltsOnly:
-		// Do nothing
-
-	default:
-		// outputAllVcfColumns iterating over INFO fields
-		for _, info := range infoList {
-			if betaOnly && info.id != "BETA" {
+		if err == nil && valueInterface != nil {
+			if betaOnly && info.id == "BETA" {
+				outputFields[outputFilename] = valueInterface.(float64)
 				continue
 			}
 
-			valueInterface, err := infos.Get(info.id)
+			switch info.infoType {
+			case "int32":
+				value := valueInterface.(int)
+				outputFields[info.id] = int32(value)
 
-			if err == nil && valueInterface != nil {
-				if betaOnly && info.id == "BETA" {
-					outputFields[outputFilename] = valueInterface.(float64)
-					continue
+			case "float64":
+				value := valueInterface.(float64)
+				outputFields[info.id] = value
+
+			case "float32":
+				value := valueInterface.(float32)
+				outputFields[info.id] = value
+
+			case "bool":
+				outputFields[info.id] = true
+
+			case "[]int":
+				value := valueInterface.([]int)
+				valuesText := make([]string, 0)
+				for i := range value {
+					number := value[i]
+					text := strconv.Itoa(number)
+					valuesText = append(valuesText, text)
 				}
+				valueStr := strings.Join(valuesText, ",")
+				outputFields[info.id] = []byte(valueStr)
 
-				switch info.infoType {
-				case "int32":
-					value := valueInterface.(int)
-					outputFields[info.id] = int32(value)
-
-				case "float64":
-					value := valueInterface.(float64)
-					outputFields[info.id] = value
-
-				case "float32":
-					value := valueInterface.(float32)
-					outputFields[info.id] = value
-
-				case "bool":
-					outputFields[info.id] = true
-
-				case "[]int":
-					value := valueInterface.([]int)
-					valuesText := make([]string, 0)
-					for i := range value {
-						number := value[i]
-						text := strconv.Itoa(number)
-						valuesText = append(valuesText, text)
-					}
-					valueStr := strings.Join(valuesText, ",")
-					outputFields[info.id] = []byte(valueStr)
-
-				case "[]float32":
-					value := valueInterface.([]float32)
-					valuesText := make([]string, 0)
-					for i := range value {
-						fl := value[i]
-						text := fmt.Sprintf("%.2f", fl)
-						valuesText = append(valuesText, text)
-					}
-					valueStr := strings.Join(valuesText, ",")
-					outputFields[info.id] = []byte(valueStr)
-
-				case "string":
-					value := valueInterface.(string)
-					outputFields[info.id] = []byte(value)
-
-				default:
-					continue
+			case "[]float32":
+				value := valueInterface.([]float32)
+				valuesText := make([]string, 0)
+				for i := range value {
+					fl := value[i]
+					text := fmt.Sprintf("%.2f", fl)
+					valuesText = append(valuesText, text)
 				}
-			} else {
+				valueStr := strings.Join(valuesText, ",")
+				outputFields[info.id] = []byte(valueStr)
 
-				switch info.infoType {
-				case "int32":
-					outputFields[info.id] = int32(0)
+			case "string":
+				value := valueInterface.(string)
+				outputFields[info.id] = []byte(value)
 
-				case "float64":
-					outputFields[info.id] = float64(0.0)
+			default:
+				continue
+			}
+		} else {
 
-				case "float32":
-					outputFields[info.id] = float32(0.0)
+			switch info.infoType {
+			case "int32":
+				outputFields[info.id] = int32(0)
 
-				case "[]int":
-					outputFields[info.id] = []byte("")
+			case "float64":
+				outputFields[info.id] = float64(0.0)
 
-				case "[]float64":
-					outputFields[info.id] = []byte("")
+			case "float32":
+				outputFields[info.id] = float32(0.0)
 
-				case "bool":
-					outputFields[info.id] = []byte("false")
+			case "[]int":
+				outputFields[info.id] = []byte("")
 
-				case "string":
-					outputFields[info.id] = []byte("")
+			case "[]float64":
+				outputFields[info.id] = []byte("")
 
-				default:
-					outputFields[info.id] = []byte("")
-				}
+			case "bool":
+				outputFields[info.id] = []byte("false")
+
+			case "string":
+				outputFields[info.id] = []byte("")
+
+			default:
+				outputFields[info.id] = []byte("")
 			}
 		}
 	}
 
 	return outputFields
+}
+
+var reservedColumnNames = map[string]bool{
+	"VARIANTKEY": true,
+	"CHROM":      true,
+	"POS":        true,
+	"REF":        true,
+	"ALT":        true,
+	"QUAL":       true,
+	"FILTER":     true,
+	"IS_SV":      true,
+	"SVTYPE":     true,
+	"END":        true,
+	"NUMALTS":    true,
+	"SAMPLE":     true,
+	"IS_PHASED":  true,
+	"PHASE_ID":   true,
 }

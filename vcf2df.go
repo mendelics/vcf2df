@@ -34,13 +34,9 @@ func main() {
 						Name:  "beta",
 						Usage: "Change BETA field to filename",
 					},
-					&cli.BoolFlag{
-						Name:  "numalts",
-						Usage: "Only export variantkey and all NUMALTS@SAMPLE",
-					},
 				},
 				Action: func(c *cli.Context) error {
-					convert2parquet(c.String("vcf"), c.String("out"), c.Bool("beta"), c.Bool("numalts"))
+					convert2parquet(c.String("vcf"), c.String("out"), c.Bool("beta"))
 					return nil
 				},
 			},
