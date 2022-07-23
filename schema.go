@@ -14,7 +14,7 @@ type infoField struct {
 	infoType string
 }
 
-func defineSchema(header *vcfio.Header, betaOnly bool, outputFilename string) (*parquetschema.SchemaDefinition, []infoField, error) {
+func defineSchema(header *vcfio.Header, outputFilename string) (*parquetschema.SchemaDefinition, []infoField, error) {
 	schemaSlice := make([]string, 0)
 	infoList := make([]infoField, 0)
 
@@ -37,10 +37,6 @@ func defineSchema(header *vcfio.Header, betaOnly bool, outputFilename string) (*
 
 	// INFO
 	for _, info := range header.Infos {
-		if betaOnly && info.Id != "BETA" {
-			continue
-		}
-
 		if reservedColumnNames[info.Id] {
 			continue
 		}
@@ -81,10 +77,6 @@ func defineSchema(header *vcfio.Header, betaOnly bool, outputFilename string) (*
 			continue
 		}
 
-		if betaOnly {
-			line = strings.Replace(line, "BETA", outputFilename, -1)
-		}
-
 		infoList = append(infoList, infoField{
 			id:       info.Id,
 			infoType: infoTypeStr,
@@ -110,7 +102,6 @@ func formatOutputMap(
 	g vcfio.SampleSpecific,
 	infoList []infoField,
 	infos *vcfio.InfoByte,
-	betaOnly bool,
 	outputFilename string,
 ) map[string]interface{} {
 
@@ -134,18 +125,9 @@ func formatOutputMap(
 
 	// outputAllVcfColumns iterating over INFO fields
 	for _, info := range infoList {
-		if betaOnly && info.id != "BETA" {
-			continue
-		}
-
 		valueInterface, err := infos.Get(info.id)
 
 		if err == nil && valueInterface != nil {
-			if betaOnly && info.id == "BETA" {
-				outputFields[outputFilename] = valueInterface.(float64)
-				continue
-			}
-
 			switch info.infoType {
 			case "int32":
 				value := valueInterface.(int)

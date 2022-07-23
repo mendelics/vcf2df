@@ -30,13 +30,9 @@ func main() {
 						Value: "./",
 						Usage: "Output folder.",
 					},
-					&cli.BoolFlag{
-						Name:  "beta",
-						Usage: "Change BETA field to filename",
-					},
 				},
 				Action: func(c *cli.Context) error {
-					convert2parquet(c.String("vcf"), c.String("out"), c.Bool("beta"))
+					convert2parquet(c.String("vcf"), c.String("out"))
 					return nil
 				},
 			},
