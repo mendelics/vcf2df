@@ -17,7 +17,7 @@ type infoField struct {
 
 func defineSchema(header *vcfio.Header, betaOnly, numaltsOnly bool, outputFilename string) (*parquetschema.SchemaDefinition, []infoField, error) {
 	schemaSlice := make([]string, 0)
-	schemaSlice = append(schemaSlice, "required binary variantkey (STRING)")
+	schemaSlice = append(schemaSlice, "required binary VARIANTKEY (STRING)")
 	infoList := make([]infoField, 0)
 
 	// Sample Genotypes
@@ -39,6 +39,9 @@ func defineSchema(header *vcfio.Header, betaOnly, numaltsOnly bool, outputFilena
 			"required binary ALT (STRING)",
 			"required double QUAL",
 			"required binary FILTER (STRING)",
+			"required boolean IS_SV",
+			"required binary SVTYPE (STRING)",
+			"required int32 END",
 		}...)
 
 		for _, sample := range header.SampleNames {
@@ -55,6 +58,10 @@ func defineSchema(header *vcfio.Header, betaOnly, numaltsOnly bool, outputFilena
 	default:
 		for _, info := range header.Infos {
 			if betaOnly && info.Id != "BETA" {
+				continue
+			}
+
+			if info.Id == "SVTYPE" || info.Id == "END" {
 				continue
 			}
 
@@ -131,7 +138,7 @@ func formatOutputMap(
 
 	// Every df contains variantkey
 	outputFields := map[string]interface{}{
-		"variantkey": []byte(v.VariantKey),
+		"VARIANTKEY": []byte(v.VariantKey),
 	}
 
 	switch {
@@ -155,6 +162,9 @@ func formatOutputMap(
 		outputFields["ALT"] = []byte(v.Alt)
 		outputFields["QUAL"] = q.QualScore
 		outputFields["FILTER"] = []byte(q.Filter)
+		outputFields["IS_SV"] = v.IsSV
+		outputFields["SVTYPE"] = []byte(v.SVtype)
+		outputFields["END"] = int32(v.End)
 
 		for _, sample := range g {
 			columnName := fmt.Sprintf("NUMALTS@%s", sample.SampleName)
@@ -257,21 +267,5 @@ func formatOutputMap(
 		}
 	}
 
-	// adjust END
-	if end, exists := outputFields["END"]; exists {
-		if end.(int32) == 0 {
-			outputFields["END"] = int32(v.End)
-		}
-	}
-
 	return outputFields
 }
-
-// SVtype string // Structural Variant type
-// IsSV   bool   // Is Structural Variant (CNV, INS, INV, BND)
-
-// // Only applies to inversions and breakends
-// TranslocatedChr         string
-// TranslocatedStart       int
-// TranslocatedIsPosStrand bool
-// TranslocatedComesAfter  bool
