@@ -7,14 +7,11 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-// GitVersion is stored at compile time
-var GitVersion string
-
 func main() {
 
 	app := &cli.App{
 		Name:  "vcf2df",
-		Usage: "Convert VCF to Pandas dataframe parquet file",
+		Usage: "Convert VCF to parquet file",
 		Commands: []*cli.Command{
 			{
 				Name:  "convert",
