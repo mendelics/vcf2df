@@ -50,6 +50,8 @@ func Convert2parquet(vcfPath, outputFolder string) {
 		log.Fatalf("Parsing schema definition failed: %v", err)
 	}
 
+	columnMap := mapColumnNames(infoList)
+
 	schemaDef, err := parquetschema.ParseSchemaDefinition(schemaMessage)
 	if err != nil {
 		log.Fatalf("Parsing schema definition failed: %v", err)
@@ -59,6 +61,7 @@ func Convert2parquet(vcfPath, outputFolder string) {
 		goparquet.WithCompressionCodec(parquet.CompressionCodec_SNAPPY),
 		goparquet.WithSchemaDefinition(schemaDef),
 		goparquet.WithCreator("write-lowlevel"),
+		goparquet.WithMetaData(columnMap),
 	)
 
 	for vcfScanner.Scan() {

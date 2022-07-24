@@ -43,11 +43,11 @@ func TestDefineSchemaMsg(t *testing.T) {
 					Type:        "String",
 				},
 			},
-			"message test {required binary VARIANTKEY (STRING); required binary CHROM (STRING); required int32 POS; required binary REF (STRING); required binary ALT (STRING); required int32 QUAL; required boolean FILTER; required boolean IS_SV; required binary SVTYPE (STRING); required int32 END; required int32 NUMALTS; required binary SAMPLE (STRING); required boolean IS_PHASED; required binary PHASE_ID (STRING); required binary AC (STRING); required binary AF (STRING); required binary AS_RAW_MQ (STRING); required boolean DS;}",
+			"message test {required binary VARIANTKEY (STRING); required binary CHROM (STRING); required int32 POS; required binary REF (STRING); required binary ALT (STRING); required int32 QUAL; required boolean FILTER; required boolean IS_SV; required binary SVTYPE (STRING); required int32 END; required int32 NUMALTS; required binary SAMPLE (STRING); required boolean IS_PHASED; required binary PHASE_ID (STRING); required int32 REF_READS; required int32 ALT_READS; required binary AC (STRING); required binary AF (STRING); required binary AS_RAW_MQ (STRING); required boolean DS;}",
 		},
 		{
 			map[string]*vcfio.InfoVcf{},
-			"message test {required binary VARIANTKEY (STRING); required binary CHROM (STRING); required int32 POS; required binary REF (STRING); required binary ALT (STRING); required int32 QUAL; required boolean FILTER; required boolean IS_SV; required binary SVTYPE (STRING); required int32 END; required int32 NUMALTS; required binary SAMPLE (STRING); required boolean IS_PHASED; required binary PHASE_ID (STRING);}",
+			"message test {required binary VARIANTKEY (STRING); required binary CHROM (STRING); required int32 POS; required binary REF (STRING); required binary ALT (STRING); required int32 QUAL; required boolean FILTER; required boolean IS_SV; required binary SVTYPE (STRING); required int32 END; required int32 NUMALTS; required binary SAMPLE (STRING); required boolean IS_PHASED; required binary PHASE_ID (STRING); required int32 REF_READS; required int32 ALT_READS;}",
 		},
 	}
 	for i, test := range tt {

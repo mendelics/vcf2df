@@ -32,6 +32,8 @@ func formatOutputMap(
 		"SAMPLE":     []byte(g.SampleName),
 		"IS_PHASED":  g.IsPhased,
 		"PHASE_ID":   []byte(g.PhaseID),
+		"REF_READS":  int32(g.ReadDepthRef),
+		"ALT_READS":  int32(g.ReadDepthAlt),
 	}
 
 	// outputAllVcfColumns iterating over INFO fields

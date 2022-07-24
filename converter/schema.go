@@ -9,8 +9,9 @@ import (
 )
 
 type infoField struct {
-	id       string
-	infoType string
+	id          string
+	infoType    string
+	Description string
 }
 
 func defineSchemaMessage(header *vcfio.Header) (string, []infoField, error) {
@@ -32,6 +33,8 @@ func defineSchemaMessage(header *vcfio.Header) (string, []infoField, error) {
 		"required binary SAMPLE (STRING)",
 		"required boolean IS_PHASED",
 		"required binary PHASE_ID (STRING)",
+		"required int32 REF_READS",
+		"required int32 ALT_READS",
 	}...)
 
 	infoSlice := make([]string, 0)
@@ -43,23 +46,28 @@ func defineSchemaMessage(header *vcfio.Header) (string, []infoField, error) {
 
 		var line string
 		var infoTypeStr string
+		var infoDescription string
 
 		switch {
 		case info.Type == "Integer" && info.Number == "1":
 			line = fmt.Sprintf("required int32 %s", info.Id)
 			infoTypeStr = "int32"
+			infoDescription = info.Description
 
 		case info.Type == "Float" && info.Number == "1":
 			line = fmt.Sprintf("required double %s", info.Id)
 			infoTypeStr = "float64"
+			infoDescription = info.Description
 
 		case info.Type == "Flag" && info.Number == "0":
 			line = fmt.Sprintf("required boolean %s", info.Id)
 			infoTypeStr = "bool"
+			infoDescription = info.Description
 
 		case info.Type == "String" && info.Number == "1":
 			line = fmt.Sprintf("required binary %s (STRING)", info.Id)
 			infoTypeStr = "string"
+			infoDescription = info.Description
 
 		case info.Number != "1":
 
@@ -67,10 +75,12 @@ func defineSchemaMessage(header *vcfio.Header) (string, []infoField, error) {
 			case info.Type == "Integer":
 				line = fmt.Sprintf("required binary %s (STRING)", info.Id)
 				infoTypeStr = "[]int"
+				infoDescription = info.Description
 
 			case info.Type == "Float":
 				line = fmt.Sprintf("required binary %s (STRING)", info.Id)
 				infoTypeStr = "[]float32"
+				infoDescription = info.Description
 			}
 
 		default:
@@ -78,8 +88,9 @@ func defineSchemaMessage(header *vcfio.Header) (string, []infoField, error) {
 		}
 
 		infoList = append(infoList, infoField{
-			id:       info.Id,
-			infoType: infoTypeStr,
+			id:          info.Id,
+			infoType:    infoTypeStr,
+			Description: infoDescription,
 		})
 
 		infoSlice = append(infoSlice, line)
