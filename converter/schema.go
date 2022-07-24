@@ -2,9 +2,9 @@ package converter
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
-	"github.com/fraugster/parquet-go/parquetschema"
 	"github.com/mendelics/vcfio"
 )
 
@@ -13,7 +13,7 @@ type infoField struct {
 	infoType string
 }
 
-func defineSchema(header *vcfio.Header, outputFilename string) (*parquetschema.SchemaDefinition, []infoField, error) {
+func defineSchemaMessage(header *vcfio.Header) (string, []infoField, error) {
 	schemaSlice := make([]string, 0)
 	infoList := make([]infoField, 0)
 
@@ -34,6 +34,7 @@ func defineSchema(header *vcfio.Header, outputFilename string) (*parquetschema.S
 		"required binary PHASE_ID (STRING)",
 	}...)
 
+	infoSlice := make([]string, 0)
 	// INFO
 	for _, info := range header.Infos {
 		if reservedColumnNames[info.Id] {
@@ -81,16 +82,15 @@ func defineSchema(header *vcfio.Header, outputFilename string) (*parquetschema.S
 			infoType: infoTypeStr,
 		})
 
-		schemaSlice = append(schemaSlice, line)
+		infoSlice = append(infoSlice, line)
 	}
 
-	schemaStr := strings.Join(schemaSlice, ";\n")
-	msg := fmt.Sprintf("message test {\n%s;\n}", schemaStr)
+	// Guarantees same order of columns, therefore is testable
+	sort.Strings(infoSlice)
+	schemaSlice = append(schemaSlice, infoSlice...)
 
-	schemadef, err := parquetschema.ParseSchemaDefinition(msg)
-	if err != nil {
-		return nil, nil, err
-	}
+	schemaStr := strings.Join(schemaSlice, "; ")
+	msg := fmt.Sprintf("message test {%s;}", schemaStr)
 
-	return schemadef, infoList, nil
+	return msg, infoList, nil
 }

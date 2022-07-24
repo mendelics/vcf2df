@@ -14,7 +14,6 @@ func formatOutputMap(
 	g vcfio.SampleSpecific,
 	infoList []infoField,
 	infos *vcfio.InfoByte,
-	outputFilename string,
 ) map[string]interface{} {
 
 	// Every df contains variantkey
