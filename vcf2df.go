@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/mendelics/vcf2df/converter"
 	"github.com/urfave/cli/v2"
 )
 
@@ -29,7 +30,7 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					convert2parquet(c.String("vcf"), c.String("out"))
+					converter.Convert2parquet(c.String("vcf"), c.String("out"))
 					return nil
 				},
 			},

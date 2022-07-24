@@ -1,4 +1,4 @@
-package main
+package converter
 
 import (
 	"log"
@@ -12,8 +12,8 @@ import (
 	"github.com/fraugster/parquet-go/parquet"
 )
 
-// convert2parquet converts vcf to dataframe parquet file with variantkey + numalts
-func convert2parquet(vcfPath, outputFolder string) {
+// Convert2parquet converts vcf to dataframe parquet file with variantkey + numalts
+func Convert2parquet(vcfPath, outputFolder string) {
 
 	// Check VCF file
 	missingVcfs := checkIfVcfsExist([]string{vcfPath})

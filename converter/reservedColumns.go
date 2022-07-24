@@ -1,4 +1,4 @@
-package main
+package converter
 
 var reservedColumnNames = map[string]bool{
 	"VARIANTKEY": true,

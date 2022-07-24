@@ -23,5 +23,3 @@ Reads sample.vcf.gz and writes sample.parquet
 
 If vcf has 1+ sample genotypes, the parquet file will contain 1 line per sample with > 0 alleles. If the vcf does not contain samples, all variants will be represented in the parquet file.
 
---------------
-Mendelics 2022
