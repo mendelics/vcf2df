@@ -4,59 +4,75 @@ Reads sample.vcf.gz and writes sample.parquet
 
 #### Reserved column names:
 
-- **VARIANTKEY**
+- **VARIANTKEY** (STRING)
+
     Variantkey is CHR-POS-REF-ALT for small variants and CHR-POS-END-SVTYPE for structural variants. CHR without chr preffix.
 
-- **CHROM**
+- **CHROM** (STRING)
+
     Chromosome (including chr preffix).
 
-- **POS**
+- **POS** (INT)
+
     Position (1-based)
 
-- **REF**
+- **REF** (STRING)
+
     Reference allele. Empty for structural variants.
 
-- **ALT**
+- **ALT** (STRING)
+
     Alternate allele. Empty for structural variants.
 
-- **QUAL**
+- **QUAL** (INT)
+
     Quality score (Integer)
 
-- **PASS**
+- **PASS** (BOOL)
+
     Boolean describing filter == PASS || filter == "."
 
-- **IS_SV**
+- **IS_SV** (BOOL)
+
     Boolean structural variant.",
 
-- **SVTYPE**
+- **SVTYPE** (STRING)
+
     Structural variant type (ex. DEL, DUP, INV, ...)
 
-- **END**
+- **END** (INT)
+
     End position of variant (1-based).
 
-- **NUMALTS**
+- **NUMALTS** (INT)
+
     Number of alternate alleles (0, 1, 2)
 
-- **SAMPLE**
+- **SAMPLE** (STRING)
+
     Sample string.
 
-- **IS_PHASED**
+- **IS_PHASED** (BOOL)
+
     Boolean if variant is phased.
 
-- **PHASE_ID**
+- **PHASE_ID** (STRING)
+
     String identifying variant phase.
 
-- **REF_READS**
+- **REF_READS** (INT)
+
     Read depth for ref.
 
-- **ALT_READS**
+- **ALT_READS** (INT)
+
     Read depth for alt.
 
 #### Samples:
 
 If vcf has 1+ sample genotypes, the parquet file will contain 1 line per sample with > 0 alleles. If the vcf does not contain samples, all variants will be represented in the parquet file.
 
-##### Footer:
+#### Footer:
 
 All columns are described in the parquet metadata (footer) key-values.
 
