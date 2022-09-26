@@ -24,7 +24,7 @@ func formatOutputMap(
 		"REF":        []byte(v.Ref),
 		"ALT":        []byte(v.Alt),
 		"QUAL":       int32(q.QualScore),
-		"FILTER":     (q.Filter == "PASS" || q.Filter == "."),
+		"PASS":       (q.Filter == "PASS" || q.Filter == "."),
 		"IS_SV":      v.IsSV,
 		"SVTYPE":     []byte(v.SVtype),
 		"END":        int32(v.End),

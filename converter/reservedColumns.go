@@ -7,7 +7,7 @@ var reservedColumnNames = map[string]bool{
 	"REF":        true,
 	"ALT":        true,
 	"QUAL":       true,
-	"FILTER":     true,
+	"PASS":       true,
 	"IS_SV":      true,
 	"SVTYPE":     true,
 	"END":        true,

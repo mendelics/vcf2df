@@ -25,7 +25,7 @@ func defineSchemaMessage(header *vcfio.Header) (string, []infoField, error) {
 		"required binary REF (STRING)",
 		"required binary ALT (STRING)",
 		"required int32 QUAL",
-		"required boolean FILTER",
+		"required boolean PASS",
 		"required boolean IS_SV",
 		"required binary SVTYPE (STRING)",
 		"required int32 END",
