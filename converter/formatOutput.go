@@ -1,9 +1,7 @@
 package converter
 
 import (
-	"fmt"
-	"strconv"
-	"strings"
+	"log"
 
 	"github.com/mendelics/vcfio"
 )
@@ -24,63 +22,54 @@ func formatOutputMap(
 		"REF":        []byte(v.Ref),
 		"ALT":        []byte(v.Alt),
 		"QUAL":       int32(q.QualScore),
+		"FILTER":     []byte(q.Filter),
+		"SAMPLE":     []byte(g.SampleName),
+		"NUMALTS":    int32(g.NumAlts),
+		"IS_PHASED":  g.IsPhased,
+		"PHASE_ID":   []byte(g.PhaseID),
 		"PASS":       (q.Filter == "PASS" || q.Filter == "."),
 		"IS_SV":      v.IsSV,
 		"SVTYPE":     []byte(v.SVtype),
 		"END":        int32(v.End),
-		"NUMALTS":    int32(g.NumAlts),
-		"SAMPLE":     []byte(g.SampleName),
-		"IS_PHASED":  g.IsPhased,
-		"PHASE_ID":   []byte(g.PhaseID),
-		"REF_READS":  int32(g.ReadDepthRef),
-		"ALT_READS":  int32(g.ReadDepthAlt),
 	}
 
 	// outputAllVcfColumns iterating over INFO fields
 	for _, info := range infoList {
-		valueInterface, err := infos.Get(info.id)
+		h, err := infos.Get(info.Rootid)
 
-		if err == nil && valueInterface != nil {
+		if err == nil && h != nil {
 			switch info.infoType {
 			case "int32":
-				value := valueInterface.(int)
-				outputFields[info.id] = int32(value)
+				if info.TotalValues == 1 && !info.IsSlice {
+					value := h.(int)
+					outputFields[info.id] = int32(value)
+				} else {
+					values := h.([]int)
+					if len(values) != info.TotalValues {
+						log.Fatalf("Problem with %+v and %+v", h, info)
+					}
+					value := values[info.Position]
+					outputFields[info.id] = int32(value)
+				}
 
-			case "float64":
-				value := valueInterface.(float64)
-				outputFields[info.id] = value
-
-			case "float32":
-				value := valueInterface.(float32)
-				outputFields[info.id] = value
+			case "float":
+				if info.TotalValues == 1 && !info.IsSlice {
+					value := h.(float64)
+					outputFields[info.id] = value
+				} else {
+					values := h.([]float32)
+					if len(values) != info.TotalValues {
+						log.Fatalf("Problem with %+v and %+v", h, info)
+					}
+					value := values[info.Position]
+					outputFields[info.id] = float64(value)
+				}
 
 			case "bool":
 				outputFields[info.id] = true
 
-			case "[]int":
-				value := valueInterface.([]int)
-				valuesText := make([]string, 0)
-				for i := range value {
-					number := value[i]
-					text := strconv.Itoa(number)
-					valuesText = append(valuesText, text)
-				}
-				valueStr := strings.Join(valuesText, ",")
-				outputFields[info.id] = []byte(valueStr)
-
-			case "[]float32":
-				value := valueInterface.([]float32)
-				valuesText := make([]string, 0)
-				for i := range value {
-					fl := value[i]
-					text := fmt.Sprintf("%.2f", fl)
-					valuesText = append(valuesText, text)
-				}
-				valueStr := strings.Join(valuesText, ",")
-				outputFields[info.id] = []byte(valueStr)
-
 			case "string":
-				value := valueInterface.(string)
+				value := h.(string)
 				outputFields[info.id] = []byte(value)
 
 			default:
@@ -92,17 +81,8 @@ func formatOutputMap(
 			case "int32":
 				outputFields[info.id] = int32(0)
 
-			case "float64":
+			case "float":
 				outputFields[info.id] = float64(0.0)
-
-			case "float32":
-				outputFields[info.id] = float32(0.0)
-
-			case "[]int":
-				outputFields[info.id] = []byte("")
-
-			case "[]float64":
-				outputFields[info.id] = []byte("")
 
 			case "bool":
 				outputFields[info.id] = []byte("false")

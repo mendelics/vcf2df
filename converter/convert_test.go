@@ -17,8 +17,8 @@ func TestConvert2parquet(t *testing.T) {
 		parquetPath   string
 		expectedCount int
 	}{
-		{"../samples/snv.vcf.gz", "snv.parquet", 5462},
 		{"../samples/cnv.vcf.gz", "cnv.parquet", 4},
+		{"../samples/snv.vcf.gz", "snv.parquet", 5462},
 	}
 	for i, test := range tt {
 		// Delete Parquet leftover from failed tests
