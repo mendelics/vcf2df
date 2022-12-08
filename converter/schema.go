@@ -2,7 +2,6 @@ package converter
 
 import (
 	"fmt"
-	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -109,8 +108,6 @@ func defineSchemaMessage(header *vcfio.Header) (string, []infoField, error) {
 
 	schemaStr := strings.Join(schemaSlice, "; ")
 	msg := fmt.Sprintf("message test {%s;}", schemaStr)
-
-	log.Println(msg)
 
 	return msg, infoList, nil
 }
