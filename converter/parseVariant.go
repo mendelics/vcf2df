@@ -49,7 +49,7 @@ func parseVariant(line string, header *vcfio.Header) (vcfio.VariantInfo, vcfio.Q
 	}
 
 	// Genotypes for each sample in VCF
-	genotypes, err := vcfio.ExtractVcfFORMAT(fields, info, header.SampleNames, variantInfo.SVtype)
+	genotypes, err := vcfio.ExtractVcfFORMAT(fields, info, header.SampleNames, variantInfo.SVtype, chr)
 	if err != nil {
 		log.Println(line)
 		log.Fatalf("Error extracting vcf FORMAT, %v\n", err)
